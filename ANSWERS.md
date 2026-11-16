@@ -1,6 +1,6 @@
 # 답변서
 
-이름:
+이름:정건우
 
 총 소요 시간:
 
@@ -15,26 +15,80 @@
 ### 문제 1. 상태 전이
 
 원인:
+테스트를 실행하니 41, 64, 76, 88번째 줄에서 실패했습니다.
+
+64, 76, 88번째 줄은 changeStatus를 실행하면 BusinessException이 던져지기를 기대했지만,
+예외가 던져지지 않아 실패했습니다.
+changeStatus 메서드로 들어가 보니, 안에서 Application.changeStatus를 호출하고 있었습니다.
+그런데 Application.changeStatus는 전이 가능 여부를 확인하지 않고 바로 상태를 바꾸고 있었습니다.
+
+이 부분을 고친 뒤 다시 실행해 보니, 88번째 줄은 여전히 실패했습니다.
+전이 가능 여부를 판단하는 canTransitionTo는 allowedNext의 규칙을 보고 결정하는데,
+이 규칙에서 REJECTED가 SUBMITTED로 이동할 수 있게 되어 있었습니다.
+README에서는 불합격(REJECTED) 상태에서 이동할 수 있는 상태가 없으므로, 규칙이 잘못 작성되어 있었습니다.
+
+41번째 줄은 update를 실행하면 예외가 던져지기를 기대했지만, 마찬가지로 예외가 던져지지 않아 실패했습니다.
+README에는 "DRAFT 상태에서만 원서를 수정할 수 있습니다"라는 규칙이 있는데,
+Application.update는 원서의 상태를 확인하지 않고 어떤 상태든 바로 수정하고 있었습니다.
 
 수정:
+- domain 패키지의 Application.changeStatus에서, 상태를 바꾸기 전에 next로 전이할 수 있는지 확인하고
+  불가능하면 INVALID_STATUS_TRANSITION 예외를 던지도록 수정했습니다.
+- domain 패키지의 ApplicationStatus.allowedNext에서, REJECTED는 어떤 상태로도 이동할 수 없도록 수정했습니다.
+- domain 패키지의 Application.update에서, DRAFT 상태일 때만 값을 변경하고
+  그렇지 않으면 NOT_EDITABLE 예외를 던지도록 수정했습니다.
 
 대안:
+ApplicationService에서 상태 검사를 하는 방법도 있었습니다.
+domain 패키지는 건드리지 않고, service 패키지의 메서드에서 현재 상태를 검사하는 방식이며, 이렇게 해도 테스트는 통과합니다.
+하지만 Application.changeStatus와 update는 public이라, ApplicationService를 거치지 않고 직접 호출하면 검사를 우회할 수 있습니다.
+실제로 SubmissionService.java 41번째 줄은 ApplicationService를 거치지 않고 markSubmitted()를 직접 호출하고 있습니다.
+markSubmitted는 검사를 Application 안에서 하고 있기 때문에 안전하며, 이 방식에 맞춰 Application 안에서 검사하도록 했습니다.
 
 ### 문제 2. 제출 실패가 성공처럼 보임
 
 원인:
+테스트를 실행하니 58, 70, 82, 94번째 줄에서 실패했습니다.
+
+58, 70, 82번째 줄은 f.submissionService의 submit을 실행하면 BusinessException이나 RuntimeException이
+던져지기를 기대했지만, 예외가 던져지지 않아 실패했습니다.
+submit 메서드로 들어가 보니, 지원서에 사진이 있는지와 저장소에 실제 파일이 있는지를 확인하는
+validateRequired 메서드가 있었습니다. validateRequired는 사진이 없으면 오류를 제대로 던지고 있었습니다.
+그런데 submit의 catch가 이 오류를 잡은 뒤 다시 던지지 않고, 접수번호가 null인 정상 결과를 리턴하고 있었습니다.
+
+94번째 줄도 같은 이유로 오류가 ApiExceptionHandler까지 전달되지 않아, 400 대신 200이 응답되었습니다.
 
 수정:
+SubmissionService.submit의 catch에서 접수번호가 null인 SubmitResult를 반환하던 것을,
+로그를 남긴 뒤 받은 예외를 다시 던지도록(throw e) 수정했습니다.
 
 대안:
+catch에서 다시 던지는 대신 try-catch를 아예 지우는 방법도 있었습니다.
+validateRequired에서 이미 오류를 throw했기 때문에, submit에 catch가 없으면 오류가 잡히지 않고 그대로 submit을 지나
+테스트나 ApiExceptionHandler까지 올라갑니다. 그래서 이렇게 해도 테스트는 모두 통과하고,
+사진이 없으면 400, 저장소 장애가 나면 500이 응답됩니다.
+하지만 이렇게 하면 로그가 남지 않아, 어떤 원서(id)에서 오류가 발생했는지 알 수 없습니다.
+그래서 로그는 남기고 예외를 다시 던지는 방법을 택했습니다.
 
 ### 문제 3. 잘못된 입력에 대한 응답
 
-원인:
+원인:테스트를 실행하니 38번째 줄과 51번째 줄에서 실패했습니다.
+입력값이 'ROBOTICS'일 때 400 응답을 기대했지만, 실제로는 500이 응답되어 오류가 발생했습니다.
+createDraft와 update 두 메서드 모두 parseTrack(track)에서 Track.valueOf를 그대로 호출하고 있었습니다.   
+Track.valueOf는 이름이 정확히 맞지 않거나 null이면 예외를 던지는데,
+이 예외는 BusinessException이 아니라서 ApiExceptionHandler에서 500으로 처리되었습니다.
 
-수정:
 
-대안:
+
+수정:parseTrack에서 Track.valueOf 대신 if-else문으로 들어온 값을 "GENERAL", "MEISTER_TALENT", "SOCIAL_INTEGRATION"과
+equals로 비교하도록 바꿨습니다. 맞는 값이 있으면 그 전형을 돌려주고, 없으면 BusinessException(INVALID_TRACK)예외를 던집니다.
+"GENERAL".equals(track)처럼 문자열을 앞에 둬서 track이 null이어도 오류 없이 false가 되게 했습니다.
+createDraft와 update가 같은 parseTrack을 쓰기 때문에 이 한 곳만 고쳤습니다.
+
+대안:Track.valueOf를 그대로 쓰고, null은 따로 검사한 뒤 IllegalArgumentException을 잡아서
+BusinessException(INVALID_TRACK)으로 바꿔 예외를 던지는 방법도 있었습니다.
+이 방법은 전형이 추가돼도 고칠 필요가 없지만, null과 예외를 따로 처리해야 해서                
+어떤 값이 허용되는지 바로 보이는 if-else문을 택했습니다.
 
 ### 문제 4. 동시 요청
 
