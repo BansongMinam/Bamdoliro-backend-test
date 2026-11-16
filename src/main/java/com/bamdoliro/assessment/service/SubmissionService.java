@@ -28,8 +28,7 @@ public class SubmissionService {
 
     /** 원서를 최종 제출한다. 제출이 끝나면 접수번호가 발급된다. */
     public SubmitResult submit(long applicationId) {
-        Application application = repository.findById(applicationId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.APPLICATION_NOT_FOUND));
+        Application application = repository.findById(applicationId).orElseThrow(() -> new BusinessException(ErrorCode.APPLICATION_NOT_FOUND));
 
         if (application.getStatus() != ApplicationStatus.DRAFT) {
             throw new BusinessException(ErrorCode.ALREADY_SUBMITTED);
@@ -43,7 +42,7 @@ public class SubmissionService {
             return new SubmitResult(application.getId(), number);
         } catch (Exception e) {
             log.log(Level.WARNING, "원서 제출 중 오류가 발생했습니다. id=" + applicationId, e);
-            return new SubmitResult(application.getId(), null);
+            throw e;
         }
     }
 
