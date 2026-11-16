@@ -2,6 +2,8 @@ package com.bamdoliro.assessment.web;
 
 import com.bamdoliro.assessment.common.ApiExceptionHandler;
 import com.bamdoliro.assessment.common.ApiResponse;
+import com.bamdoliro.assessment.common.BusinessException;
+import com.bamdoliro.assessment.common.ErrorCode;
 import com.bamdoliro.assessment.domain.Track;
 import com.bamdoliro.assessment.service.ApplicationService;
 import com.bamdoliro.assessment.service.SubmissionService;
@@ -43,6 +45,14 @@ public class ApplicationController {
     }
 
     private Track parseTrack(String track) {
-        return Track.valueOf(track);
+        if ("GENERAL".equals(track)) {
+            return Track.GENERAL;
+        } else if ("MEISTER_TALENT".equals(track)) {
+            return Track.MEISTER_TALENT;
+        } else if ("SOCIAL_INTEGRATION".equals(track)) {
+            return Track.SOCIAL_INTEGRATION;
+        } else {
+            throw new BusinessException(ErrorCode.INVALID_TRACK);
+        }
     }
 }
