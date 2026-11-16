@@ -19,7 +19,7 @@ public enum ApplicationStatus {
             case DRAFT -> EnumSet.of(SUBMITTED);
             case SUBMITTED -> EnumSet.of(FIRST_PASSED, REJECTED);
             case FIRST_PASSED -> EnumSet.of(FINAL_PASSED, REJECTED);
-            case REJECTED -> EnumSet.of(SUBMITTED);
+            case REJECTED -> EnumSet.noneOf(ApplicationStatus.class);
             case FINAL_PASSED -> EnumSet.noneOf(ApplicationStatus.class);
         };
     }

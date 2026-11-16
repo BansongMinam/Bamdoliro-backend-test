@@ -36,12 +36,20 @@ public class Application {
     }
 
     public void update(Track track, String photoKey) {
+        if (this.status == ApplicationStatus.DRAFT){
         this.track = track;
-        this.photoKey = photoKey;
+        this.photoKey = photoKey;}
+        else {
+            throw new BusinessException(ErrorCode.NOT_EDITABLE);
+        }
     }
 
     public void changeStatus(ApplicationStatus next) {
-        this.status = next;
+        if (this.status.canTransitionTo(next)) {
+            this.status = next;
+        } else {
+            throw new BusinessException(ErrorCode.INVALID_STATUS_TRANSITION);
+        }
     }
 
     public void markSubmitted(String applicantNumber) {
