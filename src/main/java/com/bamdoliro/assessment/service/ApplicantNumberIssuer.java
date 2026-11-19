@@ -9,9 +9,10 @@ public class ApplicantNumberIssuer {
 
     private final ConcurrentHashMap<Track, Integer> counters = new ConcurrentHashMap<>();
 
-    public String issue(Track track) {
+    public synchronized String issue(Track track) {
         int current = counters.getOrDefault(track, 0);
         simulateSequenceStoreLatency();
+
         int next = current + 1;
         counters.put(track, next);
         return track.getCode() + String.format("%04d", next);
