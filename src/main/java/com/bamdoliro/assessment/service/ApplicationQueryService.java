@@ -1,5 +1,6 @@
 package com.bamdoliro.assessment.service;
 
+import com.bamdoliro.assessment.domain.Applicant;
 import com.bamdoliro.assessment.domain.Application;
 import com.bamdoliro.assessment.domain.ApplicationStatus;
 import com.bamdoliro.assessment.domain.Track;
@@ -9,6 +10,8 @@ import com.bamdoliro.assessment.repository.InMemoryApplicationRepository;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 
 public class ApplicationQueryService {
 
@@ -34,11 +37,16 @@ public class ApplicationQueryService {
                 .limit(size)
                 .toList();
 
+        List<Long> applicantIds = applications.stream().map(Application::getApplicantId).toList();
+
+        Map<Long, String> names = new HashMap<>();
+        for (Applicant applicant : applicantRepository.findAllByIds(applicantIds)) {
+            names.put(applicant.id(), applicant.name());
+        }
+
         List<ApplicationSummary> result = new ArrayList<>();
         for (Application application : applications) {
-            String name = applicantRepository.findById(application.getApplicantId())
-                    .map(a -> a.name())
-                    .orElse("(알 수 없음)");
+            String name = names.getOrDefault(application.getApplicantId(), "(알 수 없음)");
             result.add(new ApplicationSummary(application.getId(), name, application.getTrack(), application.getStatus()));
         }
         return result;
